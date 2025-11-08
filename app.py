@@ -96,7 +96,8 @@ def upload():
         file.save(filepath)
         extracted_text = extract_pdf_text(filepath)
         return jsonify({'filename': filename, 'text': extracted_text})
-    return redirect(url_for('index'))
+    return jsonify({'filename': filename, 'text': extracted_text})
+
 
 @app.route('/chat', methods=['POST'])
 def chat():

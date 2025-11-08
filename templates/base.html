@@ -6,6 +6,14 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <!-- Top site header (ONE place for the title) -->
+    <header class="site-header">
+        <div class="site-header-inner">
+            <span class="site-icon">⚖️</span>
+            <h1 class="site-title">Case Closed</h1>
+        </div>
+    </header>
+
     <div class="container">
         {% block content %}{% endblock %}
     </div>
