@@ -22,12 +22,12 @@ ALLOWED_EXTENSIONS = {'pdf'}
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ------------------------------
-# Vertex AI / Gemini setup
-# ------------------------------
-# ------------------------------
-# Vertex AI / Gemini setup
-# ------------------------------
+# # ------------------------------
+# # Vertex AI / Gemini setup
+# # ------------------------------
+# # ------------------------------
+# # Vertex AI / Gemini setup
+# # ------------------------------
 from google import genai
 
 client = genai.Client(
@@ -36,7 +36,7 @@ client = genai.Client(
     location=GOOGLE_CLOUD_LOCATION,
 )
 
-# Create a persistent chat session (stateful memory)
+# # Create a persistent chat session (stateful memory)
 chat_session = client.chats.create(model="gemini-2.5-flash", history=[])
 
 def call_genai(prompt: str) -> str:
@@ -50,78 +50,78 @@ def call_genai(prompt: str) -> str:
     except Exception as e:
         return f"[Gemini API error: {e}]"
 
-# ------------------------------
-# CourtListener search (v4) - REPLACED
-# ------------------------------
-def query_courtlistener(q: str, page_size: int = 10):
-    """
-    Query CourtListener v4 search endpoint and return a list of simplified case dicts.
-    Uses the v4 endpoint and maps fields to: id, title, citation, pdf_link, snippet, court, decision_date.
-    """
-    base = "https://www.courtlistener.com/api/rest/v4/search/"
-    params = {
-        "q": q,
-        "page_size": page_size,
-    }
-    headers = {}
-    if COURTLISTENER_TOKEN:
-        headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
+# # ------------------------------
+# # CourtListener search (v4) - REPLACED
+# # ------------------------------
+# def query_courtlistener(q: str, page_size: int = 10):
+#     """
+#     Query CourtListener v4 search endpoint and return a list of simplified case dicts.
+#     Uses the v4 endpoint and maps fields to: id, title, citation, pdf_link, snippet, court, decision_date.
+#     """
+#     base = "https://www.courtlistener.com/api/rest/v4/search/"
+#     params = {
+#         "q": q,
+#         "page_size": page_size,
+#     }
+#     headers = {}
+#     if COURTLISTENER_TOKEN:
+#         headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
 
-    resp = requests.get(base, params=params, headers=headers, timeout=20)
-    resp.raise_for_status()
-    data = resp.json()
+#     resp = requests.get(base, params=params, headers=headers, timeout=20)
+#     resp.raise_for_status()
+#     data = resp.json()
 
-    results = []
-    for item in data.get("results", []):
-        # safe extraction with multiple fallbacks
-        title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
-        citation = item.get("citation") or ""
-        # CourtListener often returns absolute_url (path), html_url, or other link fields
-        pdf_link = item.get("absolute_url") or item.get("html_url") or item.get("url") or ""
-        snippet = item.get("snippet") or item.get("summary") or item.get("lead_paragraph") or ""
-        court = item.get("court") or {}
-        decision_date = item.get("decision_date") or item.get("date") or item.get("decision_date_display") or ""
+#     results = []
+#     for item in data.get("results", []):
+#         # safe extraction with multiple fallbacks
+#         title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
+#         citation = item.get("citation") or ""
+#         # CourtListener often returns absolute_url (path), html_url, or other link fields
+#         pdf_link = item.get("absolute_url") or item.get("html_url") or item.get("url") or ""
+#         snippet = item.get("snippet") or item.get("summary") or item.get("lead_paragraph") or ""
+#         court = item.get("court") or {}
+#         decision_date = item.get("decision_date") or item.get("date") or item.get("decision_date_display") or ""
 
-        results.append({
-            "id": item.get("id"),
-            "title": title,
-            "citation": citation,
-            "pdf_link": pdf_link,
-            "snippet": snippet,
-            "court": court,
-            "decision_date": decision_date
-        })
-    return results
+#         results.append({
+#             "id": item.get("id"),
+#             "title": title,
+#             "citation": citation,
+#             "pdf_link": pdf_link,
+#             "snippet": snippet,
+#             "court": court,
+#             "decision_date": decision_date
+#         })
+#     return results
 
-# ------------------------------
-# PDF extraction (placeholder)
-# ------------------------------
-def extract_pdf_text(path: str) -> str:
-    return f"[Mock extracted text from {os.path.basename(path)}]"
+# # ------------------------------
+# # PDF extraction (placeholder)
+# # ------------------------------
+# def extract_pdf_text(path: str) -> str:
+#     return f"[Mock extracted text from {os.path.basename(path)}]"
 
-# ------------------------------
-# Routes
-# ------------------------------
-@app.route('/')
-def index():
-    return render_template('index.html')
+# # ------------------------------
+# # Routes
+# # ------------------------------
+# @app.route('/')
+# def index():
+#     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    if 'pdf' not in request.files:
-        return redirect(url_for('index'))
-    file = request.files['pdf']
-    if file.filename == '':
-        return redirect(url_for('index'))
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        extracted_text = extract_pdf_text(filepath)
-        return jsonify({'filename': filename, 'text': extracted_text})
-    return redirect(url_for('index'))
+# @app.route('/upload', methods=['POST'])
+# def upload():
+#     if 'pdf' not in request.files:
+#         return redirect(url_for('index'))
+#     file = request.files['pdf']
+#     if file.filename == '':
+#         return redirect(url_for('index'))
+#     if file and allowed_file(file.filename):
+#         filename = secure_filename(file.filename)
+#         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+#         file.save(filepath)
+#         extracted_text = extract_pdf_text(filepath)
+#         return jsonify({'filename': filename, 'text': extracted_text})
+#     return redirect(url_for('index'))
 
-@app.route('/chat', methods=['POST'])
+# @app.route('/chat', methods=['POST'])
 def chat():
     """
     Improved chat endpoint:
@@ -216,5 +216,210 @@ def chat():
         "cases": cases
     })
 
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+
+
+
+
+
+
+
+# STRAIGHT UP TESTING FOR COURTLISTENER
+
+PROJECT_ID = os.getenv("PROJECT_ID")
+GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
+COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_TOKEN")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+# PDF upload settings
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
+ALLOWED_EXTENSIONS = {'pdf'}
+
+def allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# (Optional) GenAI setup left in place but not used for this quick-test version
+# try:
+#     from google import genai
+#     client = genai.Client(vertexai=True, project=PROJECT_ID, location=GOOGLE_CLOUD_LOCATION)
+# except Exception:
+#     client = None
+
+
+def call_genai_rationale_for_case(query_text: str, case_title: str, snippet: str) -> str:
+        prompt = (
+            "You are a concise legal research assistant. Given the user's query: "
+            f"'{query_text}', and the following case title and snippet: '{case_title} - {snippet}',\n"
+            "write a 1-2 sentence explanation why this case might be relevant (focus on legal issue similarity, factual similarity, and jurisdiction authority)."
+        )
+        
+        try:
+            return call_genai(prompt, max_output_tokens=128)
+        except Exception:
+            return "LLM unavailable to generate rationale."
+        
+    
+# # Create a persistent chat session (stateful memory)
+chat_session2 = client.chats.create(model="gemini-2.5-flash", history=[])
+
+def call_genai2(prompt: str) -> str:
+    """
+    Uses a persistent Gemini chat session to maintain context between turns.
+    """
+    try:
+        # Send the prompt directly — no generation_config keyword needed
+        response = chat_session2.send_message(prompt)
+        return response.text
+    except Exception as e:
+        return f"[Gemini API error: {e}]"
+    
+def generate_query(response: str):
+
+    prompt = "generate a query with the top 10 keywords from the following response: {response}"
+    chat = client.chats.create(model="gemini-2.5-flash")
+
+    try:
+        # Send the prompt directly — no generation_config keyword needed
+        response = chat.send_message(prompt)
+        return response.text
+    except Exception as e:
+        return f"[Gemini API error: {e}]"
+
+# ------------------------------
+# CourtListener search (v4) - immediate retrieval (no clarifying)
+# ------------------------------
+def query_courtlistener(q: str, page_size: int = 10):
+    """
+    Query CourtListener v4 search endpoint and return a list of simplified case dicts.
+    Includes debug prints and safe URL handling.
+    """
+    base = "https://www.courtlistener.com/api/rest/v4/search/"
+    params = {"q": q, "page_size": page_size}
+    headers = {}
+    if COURTLISTENER_TOKEN:
+        headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
+
+    # Debug: show request URL
+    try:
+        from urllib.parse import urlencode
+        print("[CourtListener] Requesting:", f"{base}?{urlencode(params)}", " auth:", bool(headers))
+    except Exception:
+        pass
+
+    resp = requests.get(base, params=params, headers=headers, timeout=20)
+    resp.raise_for_status()
+    data = resp.json()
+
+    # Debug: keys and sample
+    try:
+        print("[CourtListener] response keys:", list(data.keys()))
+        if "results" in data and len(data["results"]) > 0:
+            print("[CourtListener] sample result keys:", list(data["results"][0].keys()))
+    except Exception:
+        pass
+
+    results = []
+    for item in data.get("results", []):
+        title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
+        citation = item.get("citation") or ""
+        pdf_link = item.get("absolute_url") or item.get("html_url") or item.get("url") or ""
+        # If pdf_link is a path like "/opinion/1234/...", prefix the domain
+        if pdf_link and pdf_link.startswith("/"):
+            pdf_link = "https://www.courtlistener.com" + pdf_link
+        snippet = item.get("snippet") or item.get("summary") or item.get("lead_paragraph") or ""
+        court = item.get("court") or {}
+        decision_date = item.get("decision_date") or item.get("date") or ""
+
+        results.append({
+            "id": item.get("id"),
+            "title": title,
+            "citation": citation,
+            "pdf_link": pdf_link,
+            "snippet": snippet,
+            "court": court,
+            "decision_date": decision_date,
+            "_raw": item  # include raw for debugging
+        })
+    return results
+
+# ------------------------------
+# PDF extraction (placeholder)
+# ------------------------------
+def extract_pdf_text(path: str) -> str:
+    return f"[Mock extracted text from {os.path.basename(path)}]"
+
+# ------------------------------
+# Routes (index & upload unchanged)
+# ------------------------------
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    if 'pdf' not in request.files:
+        return redirect(url_for('index'))
+    file = request.files['pdf']
+    if file.filename == '':
+        return redirect(url_for('index'))
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        extracted_text = extract_pdf_text(filepath)
+        return jsonify({'filename': filename, 'text': extracted_text})
+    return redirect(url_for('index'))
+
+# ------------------------------
+# Quick-test /chat: immediate CourtListener pull (no clarifying)
+# ------------------------------
+@app.route('/chat', methods=['POST'])
+def chat():
+    """
+    Quick test endpoint: immediately query CourtListener with the user's message
+    and return the top results. No clarifying questions.
+    """
+    payload = request.json or {}
+    user_input = payload.get("message", "").strip()
+    if not user_input:
+        return jsonify({"status": "error", "message": "Empty message"}), 400
+
+    query_str = user_input
+    print("[chat] Querying CourtListener for:", query_str)
+
+    try:
+        cases = query_courtlistener(query_str, page_size=10)
+    except Exception as e:
+        print("[chat] CourtListener error:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+    # If no cases returned, include a helpful note and echo raw response (if available)
+    if not cases:
+        return jsonify({
+            "status": "results",
+            "query": query_str,
+            "cases": [],
+            "note": "No cases returned. Check query or API token; see server logs for request/response details."
+        })
+
+    # Return the found cases directly (no rationales)
+    return jsonify({
+        "status": "results",
+        "query": query_str,
+        "cases": cases
+    })
+
 if __name__ == '__main__':
+    print("Starting app. COURTLISTENER_TOKEN set:", bool(COURTLISTENER_TOKEN))
     app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
