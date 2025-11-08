@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+.env
+.env.*
+.venv
+*.log
+
+# IDEs / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
+*.seed
+*.pid.lock
+
+# Flask cache
+instance/
+*.sqlite3
+
+# Jupyter / temp
+.ipynb_checkpoints/
+*.bak
+*.tmp
+
+# Node (if you add frontend stuff)
+node_modules/
+
+# Others
+__MACOSX/

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Case Closed</h1>
+
+<!-- PDF Upload -->
+<form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+    <input type="file" name="pdf" accept="application/pdf">
+    <button type="submit">Upload PDF</button>
+</form>
+
+<!-- Chat prompt -->
+<div class="chat-box"></div>
+<form id="chat-form">
+    <input type="text" id="chat-input" placeholder="Enter your prompt or question...">
+    <button type="submit">Send</button>
+</form>
+{% endblock %}
