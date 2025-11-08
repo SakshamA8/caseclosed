@@ -1,9 +1,117 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Chat</h1>
-<div class="chat-box"></div>
-<form id="chat-form">
-    <input type="text" id="chat-input" placeholder="Type your message...">
-    <button type="submit">Send</button>
-</form>
+<div class="workspace-container" role="main">
+    <!-- Dual-pane workspace -->
+    <div class="workspace">
+        <!-- Left pane: Chat -->
+        <div class="chat-pane">
+            <div class="chat-header">
+                <div class="chat-header-content">
+                    <h2 class="chat-title">⚖️ Legal Assistant</h2>
+                    <div class="session-indicator" id="session-indicator">
+                        <span class="session-label">Session:</span>
+                        <span class="session-id" id="session-id">-</span>
+                    </div>
+                </div>
+                <!-- Toolbar -->
+                <div class="toolbar">
+                    <button type="button" class="toolbar-btn" id="upload-btn" title="Upload PDF">
+                        <span class="icon">📄</span>
+                        <span class="btn-text">Upload PDF</span>
+                    </button>
+                    <button type="button" class="toolbar-btn" id="analyze-btn" title="Analyze Case">
+                        <span class="icon">⚖️</span>
+                        <span class="btn-text">Analyze</span>
+                    </button>
+                    <button type="button" class="toolbar-btn" id="draft-btn" title="Draft Document">
+                        <span class="icon">🧾</span>
+                        <span class="btn-text">Draft</span>
+                    </button>
+                    <input type="file" name="pdf" accept="application/pdf" id="pdf-input" style="display: none;" aria-hidden="true">
+                </div>
+            </div>
+            
+            <!-- Chat messages area -->
+            <div class="chat-box" id="chat-box" aria-live="polite">
+                <div class="message bot fade-in">
+                    Hello! Upload a case PDF or describe your legal situation to begin.
+                </div>
+            </div>
+            
+            <!-- Chat input form -->
+            <form id="chat-form" class="chat-form" autocomplete="off">
+                <input
+                    type="text"
+                    id="chat-input"
+                    name="message"
+                    placeholder="Type your message or legal question..."
+                    aria-label="Message"
+                    autocomplete="off"
+                >
+                <button type="submit" aria-label="Send message" class="send-btn">
+                    <span class="send-icon">➤</span>
+                </button>
+            </form>
+        </div>
+        
+        <!-- Right pane: Tabbed panel -->
+        <div class="panel-pane">
+            <div class="panel-header">
+                <div class="panel-tabs">
+                    <button class="panel-tab active" data-tab="analysis">
+                        <span class="tab-icon">⚖️</span>
+                        <span class="tab-label">Analysis</span>
+                    </button>
+                    <button class="panel-tab" data-tab="cases">
+                        <span class="tab-icon">📚</span>
+                        <span class="tab-label">Cases</span>
+                    </button>
+                    <button class="panel-tab" data-tab="draft">
+                        <span class="tab-icon">🧾</span>
+                        <span class="tab-label">Draft</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="panel-content">
+                <!-- Analysis tab -->
+                <div class="panel-tab-content active" id="tab-analysis">
+                    <div class="panel-section">
+                        <h3 class="section-title">Case Analysis</h3>
+                        <div id="analysis-content" class="analysis-content">
+                            <p class="empty-state">No analysis available yet. Upload a PDF or describe your case to begin.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cases tab -->
+                <div class="panel-tab-content" id="tab-cases">
+                    <div class="panel-section">
+                        <h3 class="section-title">CourtListener Results</h3>
+                        <div id="cases-content" class="cases-content">
+                            <p class="empty-state">No case law results yet. Start a search to see relevant cases.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Draft tab -->
+                <div class="panel-tab-content" id="tab-draft">
+                    <div class="panel-section">
+                        <h3 class="section-title">Legal Document</h3>
+                        <div class="draft-controls">
+                            <select id="draft-type" class="draft-select">
+                                <option value="memo">Legal Memo</option>
+                                <option value="brief">Brief</option>
+                            </select>
+                            <button type="button" class="draft-generate-btn" id="draft-generate-btn">Generate Document</button>
+                        </div>
+                        <div id="draft-content" class="draft-content">
+                            <p class="empty-state">Click "Generate Document" to create a legal memo or brief based on your case analysis.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
