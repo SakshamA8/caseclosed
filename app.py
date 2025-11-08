@@ -39,9 +39,11 @@ client = genai.Client(
 # # Create a persistent chat session (stateful memory)
 chat_session = client.chats.create(model="gemini-2.5-flash", history=[])
 
-def call_genai(prompt: str) -> str:
+def call_genai(prompt: str, **kwargs) -> str:
     """
     Uses a persistent Gemini chat session to maintain context between turns.
+    Accepts extra kwargs so callers can pass optional generation params
+    without causing a TypeError (we don't forward them here).
     """
     try:
         # Send the prompt directly — no generation_config keyword needed
@@ -180,7 +182,7 @@ def chat():
 
     # Perform CourtListener v4 search (top 10)
     try:
-        cases = query_courtlistener(query_str, page_size=10)
+        cases = query_courtlistener(query_str)
     except Exception as e:
         return jsonify({
             "status": "error",
@@ -245,13 +247,6 @@ ALLOWED_EXTENSIONS = {'pdf'}
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# (Optional) GenAI setup left in place but not used for this quick-test version
-# try:
-#     from google import genai
-#     client = genai.Client(vertexai=True, project=PROJECT_ID, location=GOOGLE_CLOUD_LOCATION)
-# except Exception:
-#     client = None
-
 
 def call_genai_rationale_for_case(query_text: str, case_title: str, snippet: str) -> str:
         prompt = (
@@ -280,28 +275,40 @@ def call_genai2(prompt: str) -> str:
     except Exception as e:
         return f"[Gemini API error: {e}]"
     
-def generate_query(response: str):
-
-    prompt = "generate a query with the top 10 keywords from the following response: {response}"
+def generate_query(text: str) -> str:
+    """
+    Generate a short keyword-style query (up to ~10 keywords) from the user's
+    input text. If the LLM fails or returns an empty string, fall back to the
+    original text so downstream search still runs.
+    """
+    prompt = (
+        f"Generate a short search query (around 10 keywords) for legal searches " +
+        f"on CourtListener from the following text:\n\n{text}"
+    )
     chat = client.chats.create(model="gemini-2.5-flash")
-
     try:
-        # Send the prompt directly — no generation_config keyword needed
-        response = chat.send_message(prompt)
-        return response.text
+        resp = chat.send_message(prompt)
+        generated = getattr(resp, 'text', '') or ''
+        generated = generated.strip()
+        # If LLM produced nothing useful, return the original text as a safe fallback
+        if not generated:
+            return text
+        return generated
     except Exception as e:
-        return f"[Gemini API error: {e}]"
+        # Log to console and return the original text so search still occurs
+        print(f"[generate_query] LLM error: {e}")
+        return text
 
 # ------------------------------
 # CourtListener search (v4) - immediate retrieval (no clarifying)
 # ------------------------------
-def query_courtlistener(q: str, page_size: int = 10):
+def query_courtlistener(q: str):
     """
     Query CourtListener v4 search endpoint and return a list of simplified case dicts.
     Includes debug prints and safe URL handling.
     """
     base = "https://www.courtlistener.com/api/rest/v4/search/"
-    params = {"q": q, "page_size": page_size}
+    params = {"q": q}
     headers = {}
     if COURTLISTENER_TOKEN:
         headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
@@ -324,7 +331,7 @@ def query_courtlistener(q: str, page_size: int = 10):
             print("[CourtListener] sample result keys:", list(data["results"][0].keys()))
     except Exception:
         pass
-
+# TODO: drop to 10 most relevant cases
     results = []
     for item in data.get("results", []):
         title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
@@ -391,11 +398,11 @@ def chat():
     if not user_input:
         return jsonify({"status": "error", "message": "Empty message"}), 400
 
-    query_str = user_input
-    print("[chat] Querying CourtListener for:", query_str)
+    query_str = generate_query(user_input)
+    app.logger.info("[chat] Querying CourtListener for:", query_str)
 
     try:
-        cases = query_courtlistener(query_str, page_size=10)
+        cases = query_courtlistener(query_str)
     except Exception as e:
         print("[chat] CourtListener error:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -419,7 +426,5 @@ def chat():
 if __name__ == '__main__':
     print("Starting app. COURTLISTENER_TOKEN set:", bool(COURTLISTENER_TOKEN))
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
 
 
