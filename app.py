@@ -8,9 +8,10 @@ from dotenv import load_dotenv
 # Load env vars
 load_dotenv()
 
-PROJECT_ID = os.getenv("PROJECT_ID")          # GCP project
+PROJECT_ID = os.getenv("PROJECT_ID")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_TOKEN")
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 # PDF upload settings
 app = Flask(__name__)
@@ -35,9 +36,6 @@ client = genai.Client(
 )
 
 def call_genai(prompt: str, max_output_tokens: int = 256) -> str:
-    """
-    Calls Gemini 2.5-flash via Vertex AI to generate clarifying questions or rationale.
-    """
     try:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
@@ -96,8 +94,7 @@ def upload():
         file.save(filepath)
         extracted_text = extract_pdf_text(filepath)
         return jsonify({'filename': filename, 'text': extracted_text})
-    return jsonify({'filename': filename, 'text': extracted_text})
-
+    return redirect(url_for('index'))
 
 @app.route('/chat', methods=['POST'])
 def chat():
