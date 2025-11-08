@@ -1,369 +1,96 @@
 import os
 import tempfile
 import requests
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from google import genai
 
-# Load env vars
+# ------------------------------
+# Load environment and init
+# ------------------------------
 load_dotenv()
 
 PROJECT_ID = os.getenv("PROJECT_ID")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_TOKEN")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-# PDF upload settings
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 ALLOWED_EXTENSIONS = {'pdf'}
 
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# # ------------------------------
-# # Vertex AI / Gemini setup
-# # ------------------------------
-# # ------------------------------
-# # Vertex AI / Gemini setup
-# # ------------------------------
-from google import genai
-
+# ------------------------------
+# Vertex AI / Gemini Setup
+# ------------------------------
 client = genai.Client(
     vertexai=True,
     project=PROJECT_ID,
     location=GOOGLE_CLOUD_LOCATION,
 )
-
-# # Create a persistent chat session (stateful memory)
 chat_session = client.chats.create(model="gemini-2.5-flash", history=[])
 
-def call_genai(prompt: str, **kwargs) -> str:
-    """
-    Uses a persistent Gemini chat session to maintain context between turns.
-    Accepts extra kwargs so callers can pass optional generation params
-    without causing a TypeError (we don't forward them here).
-    """
+def call_genai(prompt: str) -> str:
     try:
-        # Send the prompt directly — no generation_config keyword needed
         response = chat_session.send_message(prompt)
         return response.text
     except Exception as e:
         return f"[Gemini API error: {e}]"
 
-# # ------------------------------
-# # CourtListener search (v4) - REPLACED
-# # ------------------------------
-# def query_courtlistener(q: str, page_size: int = 10):
-#     """
-#     Query CourtListener v4 search endpoint and return a list of simplified case dicts.
-#     Uses the v4 endpoint and maps fields to: id, title, citation, pdf_link, snippet, court, decision_date.
-#     """
-#     base = "https://www.courtlistener.com/api/rest/v4/search/"
-#     params = {
-#         "q": q,
-#         "page_size": page_size,
-#     }
-#     headers = {}
-#     if COURTLISTENER_TOKEN:
-#         headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
-
-#     resp = requests.get(base, params=params, headers=headers, timeout=20)
-#     resp.raise_for_status()
-#     data = resp.json()
-
-#     results = []
-#     for item in data.get("results", []):
-#         # safe extraction with multiple fallbacks
-#         title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
-#         citation = item.get("citation") or ""
-#         # CourtListener often returns absolute_url (path), html_url, or other link fields
-#         pdf_link = item.get("absolute_url") or item.get("html_url") or item.get("url") or ""
-#         snippet = item.get("snippet") or item.get("summary") or item.get("lead_paragraph") or ""
-#         court = item.get("court") or {}
-#         decision_date = item.get("decision_date") or item.get("date") or item.get("decision_date_display") or ""
-
-#         results.append({
-#             "id": item.get("id"),
-#             "title": title,
-#             "citation": citation,
-#             "pdf_link": pdf_link,
-#             "snippet": snippet,
-#             "court": court,
-#             "decision_date": decision_date
-#         })
-#     return results
-
-# # ------------------------------
-# # PDF extraction (placeholder)
-# # ------------------------------
-# def extract_pdf_text(path: str) -> str:
-#     return f"[Mock extracted text from {os.path.basename(path)}]"
-
-# # ------------------------------
-# # Routes
-# # ------------------------------
-# @app.route('/')
-# def index():
-#     return render_template('index.html')
-
-# @app.route('/upload', methods=['POST'])
-# def upload():
-#     if 'pdf' not in request.files:
-#         return redirect(url_for('index'))
-#     file = request.files['pdf']
-#     if file.filename == '':
-#         return redirect(url_for('index'))
-#     if file and allowed_file(file.filename):
-#         filename = secure_filename(file.filename)
-#         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-#         file.save(filepath)
-#         extracted_text = extract_pdf_text(filepath)
-#         return jsonify({'filename': filename, 'text': extracted_text})
-#     return redirect(url_for('index'))
-
-# @app.route('/chat', methods=['POST'])
-def chat():
-    """
-    Improved chat endpoint:
-    - Ask clarifying questions (as before).
-    - Proceed to retrieval when clarified OR clarification_answers present OR clarify_attempts >= 2.
-    - Return top-10 CourtListener results plus 1-2 sentence rationale for each (generated by LLM).
-    """
-
-    payload = request.json or {}
-    user_input = payload.get("message", "").strip()
-    clarified = bool(payload.get("clarified", False))
-    clarification_answers = payload.get("clarification_answers", None)  # list or string
-    try:
-        clarify_attempts = int(payload.get("clarify_attempts", 0))
-    except Exception:
-        clarify_attempts = 0
-
-    # If we don't yet have clarifications, generate clarifying questions (max 2 rounds)
-    if (not clarified) and (not clarification_answers) and (clarify_attempts < 2):
-        # Ask GenAI (Gemini) to produce short clarifying questions
-        q_text = call_genai(
-            f"You are a legal assistant. Given the user's input: \"{user_input}\", "
-            "ask 3 or less brief clarifying questions (jurisdiction, main legal issue, key facts). "
-            "Return each question on its own line."
-        )
-        clarify_attempts += 1
-        
-
-        questions = [q.strip() for q in q_text.splitlines() if q.strip()]
-        if not questions:
-            questions = [q_text]
-
-        # Tell the frontend how many attempts we've made (frontend should send back clarify_attempts+1)
-        return jsonify({
-            "status": "clarifying",
-            "questions": questions,
-            "raw": q_text,
-            "clarify_attempts": clarify_attempts + 1
-        })
-
-    # Otherwise proceed to retrieval (either clarified=True, clarification_answers present, or attempts exhausted)
-    query_pieces = []
-    if user_input:
-        query_pieces.append(user_input)
-    if clarification_answers:
-        if isinstance(clarification_answers, list):
-            query_pieces.extend([str(a) for a in clarification_answers if a and str(a).strip()])
-        else:
-            if str(clarification_answers).strip():
-                query_pieces.append(str(clarification_answers))
-
-    query_str = " ".join(query_pieces).strip()
-    if not query_str:
-        # Safety fallback to avoid empty queries
-        query_str = user_input or "legal precedent"
-
-    # Perform CourtListener v4 search (top 10)
-    try:
-        cases = query_courtlistener(query_str)
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Error querying CourtListener: {e}"
-        }), 500
-
-    # Rationale generation helper (best-effort; won't crash main flow)
-    def call_genai_rationale_for_case(query_text: str, case_title: str, snippet: str) -> str:
-        prompt = (
-            "You are a concise legal research assistant. Given the user's query: "
-            f"'{query_text}', and the following case title and snippet: '{case_title} - {snippet}',\n"
-            "write a 1-2 sentence explanation why this case might be relevant (focus on legal issue similarity, factual similarity, and jurisdiction authority)."
-        )
-        try:
-            return call_genai(prompt, max_output_tokens=120)
-        except Exception:
-            return "LLM unavailable to generate rationale."
-
-    # Generate rationales (best-effort; if GenAI fails we still return results)
-    rationales = []
-    for c in cases:
-        snippet = c.get("snippet") or c.get("title") or ""
-        rationale = call_genai_rationale_for_case(query_str, c.get("title", ""), snippet)
-        rationales.append(rationale)
-
-    # Attach rationale to each case and prepare return
-    for idx, c in enumerate(cases):
-        c["relevance"] = rationales[idx] if idx < len(rationales) else ""
-
-    return jsonify({
-        "status": "results",
-        "query": query_str,
-        "cases": cases
-    })
-
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
-
-
-
-
-
-
-
-
-
-# STRAIGHT UP TESTING FOR COURTLISTENER
-
-PROJECT_ID = os.getenv("PROJECT_ID")
-GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_TOKEN")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-# PDF upload settings
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50 MB
-ALLOWED_EXTENSIONS = {'pdf'}
-
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def call_genai_rationale_for_case(query_text: str, case_title: str, snippet: str) -> str:
-        prompt = (
-            "You are a concise legal research assistant. Given the user's query: "
-            f"'{query_text}', and the following case title and snippet: '{case_title} - {snippet}',\n"
-            "write a 1-2 sentence explanation why this case might be relevant (focus on legal issue similarity, factual similarity, and jurisdiction authority)."
-        )
-        
-        try:
-            return call_genai(prompt, max_output_tokens=128)
-        except Exception:
-            return "LLM unavailable to generate rationale."
-        
-    
-# # Create a persistent chat session (stateful memory)
-chat_session2 = client.chats.create(model="gemini-2.5-flash", history=[])
-
-def call_genai2(prompt: str) -> str:
-    """
-    Uses a persistent Gemini chat session to maintain context between turns.
-    """
-    try:
-        # Send the prompt directly — no generation_config keyword needed
-        response = chat_session2.send_message(prompt)
-        return response.text
-    except Exception as e:
-        return f"[Gemini API error: {e}]"
-    
+# ------------------------------
+# Query Generation Helper
+# ------------------------------
 def generate_query(text: str) -> str:
-    """
-    Generate a short keyword-style query (up to ~10 keywords) from the user's
-    input text. If the LLM fails or returns an empty string, fall back to the
-    original text so downstream search still runs.
-    """
     prompt = (
-        f"Generate a short search query (around 10 keywords) for legal searches " +
-        f"on CourtListener from the following text:\n\n{text}"
+        f"Generate a short keyword search query (around 10 keywords max) "
+        f"for finding relevant cases on CourtListener from this text:\n\n{text}"
     )
-    chat = client.chats.create(model="gemini-2.5-flash")
     try:
-        resp = chat.send_message(prompt)
-        generated = getattr(resp, 'text', '') or ''
-        generated = generated.strip()
-        # If LLM produced nothing useful, return the original text as a safe fallback
-        if not generated:
-            return text
-        return generated
+        response = chat_session.send_message(prompt)
+        return response.text.strip() or text
     except Exception as e:
-        # Log to console and return the original text so search still occurs
-        print(f"[generate_query] LLM error: {e}")
+        print(f"[generate_query error]: {e}")
         return text
 
 # ------------------------------
-# CourtListener search (v4) - immediate retrieval (no clarifying)
+# CourtListener API
 # ------------------------------
-def query_courtlistener(q: str):
-    """
-    Query CourtListener v4 search endpoint and return a list of simplified case dicts.
-    Includes debug prints and safe URL handling.
-    """
+def query_courtlistener(query: str):
     base = "https://www.courtlistener.com/api/rest/v4/search/"
-    params = {"q": q}
     headers = {}
     if COURTLISTENER_TOKEN:
         headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
 
-    # Debug: show request URL
-    try:
-        from urllib.parse import urlencode
-        print("[CourtListener] Requesting:", f"{base}?{urlencode(params)}", " auth:", bool(headers))
-    except Exception:
-        pass
-
+    params = {"q": query}
     resp = requests.get(base, params=params, headers=headers, timeout=20)
     resp.raise_for_status()
     data = resp.json()
 
-    # Debug: keys and sample
-    try:
-        print("[CourtListener] response keys:", list(data.keys()))
-        if "results" in data and len(data["results"]) > 0:
-            print("[CourtListener] sample result keys:", list(data["results"][0].keys()))
-    except Exception:
-        pass
-# TODO: drop to 10 most relevant cases
     results = []
     for item in data.get("results", []):
-        title = item.get("caseName") or item.get("name") or item.get("title") or "Untitled"
+        title = item.get("caseName") or item.get("name") or "Untitled"
         citation = item.get("citation") or ""
-        pdf_link = item.get("absolute_url") or item.get("html_url") or item.get("url") or ""
-        # If pdf_link is a path like "/opinion/1234/...", prefix the domain
-        if pdf_link and pdf_link.startswith("/"):
+        pdf_link = item.get("absolute_url") or item.get("url") or ""
+        if pdf_link.startswith("/"):
             pdf_link = "https://www.courtlistener.com" + pdf_link
-        snippet = item.get("snippet") or item.get("summary") or item.get("lead_paragraph") or ""
+        snippet = item.get("snippet") or item.get("summary") or ""
         court = item.get("court") or {}
-        decision_date = item.get("decision_date") or item.get("date") or ""
-
+        decision_date = item.get("decision_date") or ""
         results.append({
-            "id": item.get("id"),
             "title": title,
             "citation": citation,
             "pdf_link": pdf_link,
             "snippet": snippet,
             "court": court,
             "decision_date": decision_date,
-            "_raw": item  # include raw for debugging
         })
-    return results
+    return results[:10]
 
 # ------------------------------
-# PDF extraction (placeholder)
-# ------------------------------
-def extract_pdf_text(path: str) -> str:
-    return f"[Mock extracted text from {os.path.basename(path)}]"
-
-# ------------------------------
-# Routes (index & upload unchanged)
+# Routes
 # ------------------------------
 @app.route('/')
 def index():
@@ -380,51 +107,74 @@ def upload():
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        extracted_text = extract_pdf_text(filepath)
-        return jsonify({'filename': filename, 'text': extracted_text})
+        return jsonify({'filename': filename, 'text': f"[Mock text extracted from {filename}]"})
     return redirect(url_for('index'))
 
 # ------------------------------
-# Quick-test /chat: immediate CourtListener pull (no clarifying)
+# Chat Route (Clarifying Flow)
 # ------------------------------
 @app.route('/chat', methods=['POST'])
 def chat():
-    """
-    Quick test endpoint: immediately query CourtListener with the user's message
-    and return the top results. No clarifying questions.
-    """
     payload = request.json or {}
     user_input = payload.get("message", "").strip()
-    if not user_input:
-        return jsonify({"status": "error", "message": "Empty message"}), 400
+    clarified = payload.get("clarified", False)
+    clarification_answers = payload.get("clarification_answers", None)
+    clarify_attempts = int(payload.get("clarify_attempts", 0) or 0)
 
-    query_str = generate_query(user_input)
-    app.logger.info("[chat] Querying CourtListener for:", query_str)
-
-    try:
-        cases = query_courtlistener(query_str)
-    except Exception as e:
-        print("[chat] CourtListener error:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-    # If no cases returned, include a helpful note and echo raw response (if available)
-    if not cases:
+    # Step 1: Ask clarifying questions (up to 2 rounds)
+    if not clarified and not clarification_answers and clarify_attempts < 2:
+        prompt = (
+            f"You are a legal assistant. Given the user's input: \"{user_input}\", "
+            f"ask up to 3 brief clarifying questions (about jurisdiction, main issue, and key facts). "
+            f"Return each question on a new line."
+        )
+        response = call_genai(prompt)
+        questions = [q.strip() for q in response.splitlines() if q.strip()]
         return jsonify({
-            "status": "results",
-            "query": query_str,
-            "cases": [],
-            "note": "No cases returned. Check query or API token; see server logs for request/response details."
+            "status": "clarifying",
+            "questions": questions,
+            "clarify_attempts": clarify_attempts + 1
         })
 
-    # Return the found cases directly (no rationales)
+    # Step 2: Combine user input + answers
+    parts = [user_input]
+    if clarification_answers:
+        if isinstance(clarification_answers, list):
+            parts.extend(clarification_answers)
+        else:
+            parts.append(str(clarification_answers))
+    query_text = " ".join(parts).strip()
+
+    # Step 3: Summarize full case description into a search query
+    summary_prompt = (
+        f"Summarize the following case outline into a concise, factual search description:\n\n{query_text}"
+    )
+    summarized_info = call_genai(summary_prompt)
+    search_query = generate_query(summarized_info)
+
+    # Step 4: Query CourtListener
+    try:
+        cases = query_courtlistener(search_query)
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"Search failed: {e}"}), 500
+
+    # Step 5: Generate rationales
+    results = []
+    for c in cases:
+        rationale_prompt = (
+            f"Explain in 1–2 sentences why the case '{c['title']}' "
+            f"might be relevant to the user's issue: {summarized_info}"
+        )
+        rationale = call_genai(rationale_prompt)
+        c["relevance"] = rationale
+        results.append(c)
+
     return jsonify({
         "status": "results",
-        "query": query_str,
-        "cases": cases
+        "query": search_query,
+        "cases": results
     })
 
 if __name__ == '__main__':
-    print("Starting app. COURTLISTENER_TOKEN set:", bool(COURTLISTENER_TOKEN))
+    print("Starting Lawyer Assistant App...")
     app.run(host='0.0.0.0', port=5000, debug=True)
-
-
