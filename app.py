@@ -1,71 +1,115 @@
 import os
 import tempfile
 import requests
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+import uuid
+import re
+import json
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from google import genai
 
-# ------------------------------
-# Load environment and init
-# ------------------------------
+# =====================================================
+# INITIALIZATION
+# =====================================================
 load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret")
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
+ALLOWED_EXTENSIONS = {'pdf'}
 
 PROJECT_ID = os.getenv("PROJECT_ID")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
 COURTLISTENER_TOKEN = os.getenv("COURTLISTENER_TOKEN")
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-ALLOWED_EXTENSIONS = {'pdf'}
-
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-# ------------------------------
-# Vertex AI / Gemini Setup
-# ------------------------------
+# -----------------------------------------------------
+# Vertex AI Client Setup
+# -----------------------------------------------------
 client = genai.Client(
     vertexai=True,
     project=PROJECT_ID,
     location=GOOGLE_CLOUD_LOCATION,
 )
-chat_session = client.chats.create(model="gemini-2.5-flash", history=[])
 
-def call_genai(prompt: str) -> str:
-    try:
-        response = chat_session.send_message(prompt)
-        return response.text
-    except Exception as e:
-        return f"[Gemini API error: {e}]"
+# Independent agents
+clarifier_agent = client.chats.create(model="gemini-2.5-flash")
+summarizer_agent = client.chats.create(model="gemini-2.5-flash")
+scorer_agent = client.chats.create(model="gemini-2.5-flash")
 
-# ------------------------------
-# Query Generation Helper
-# ------------------------------
-def generate_query(text: str) -> str:
+# -----------------------------------------------------
+# Simple in-memory user context
+# -----------------------------------------------------
+user_contexts = {}  # {session_id: {"description": str, "clarify_attempts": int}}
+
+def get_context_id():
+    if "context_id" not in session:
+        session["context_id"] = str(uuid.uuid4())
+    return session["context_id"]
+
+# =====================================================
+# AGENT FUNCTIONS
+# =====================================================
+def ask_clarifying_questions(user_input: str) -> list:
     prompt = (
-        f"Generate a short keyword search query (around 10 keywords max) "
-        f"for finding relevant cases on CourtListener from this text:\n\n{text}"
+        f"You are a legal assistant. Given this input: '{user_input}', "
+        "ask up to 3 concise clarifying questions about the jurisdiction, "
+        "main issue, and key facts. Return each question on a new line."
     )
     try:
-        response = chat_session.send_message(prompt)
-        return response.text.strip() or text
+        response = clarifier_agent.send_message(prompt)
+        return [q.strip() for q in response.text.splitlines() if q.strip()]
     except Exception as e:
-        print(f"[generate_query error]: {e}")
-        return text
+        return [f"[Error asking clarifications: {e}]"]
 
-# ------------------------------
-# CourtListener API
-# ------------------------------
+def summarize_case(text: str) -> str:
+    prompt = f"Summarize this legal situation clearly and factually for use in a case law search:\n\n{text}"
+    try:
+        response = summarizer_agent.send_message(prompt)
+        return response.text.strip()
+    except Exception as e:
+        return f"[Error summarizing: {e}]"
+
+def generate_query(summary: str) -> str:
+    prompt = (
+        f"Generate a short keyword-style legal search query (10 main keywords) for CourtListener "
+        f"based on this summary:\n\n{summary}"
+    )
+    try:
+        response = summarizer_agent.send_message(prompt)
+        return response.text.strip() or summary
+    except Exception as e:
+        return summary
+
+def grade_case(summary: str, case_title: str, snippet: str) -> dict:
+    prompt = (
+        "You are a legal relevance evaluator.\n"
+        f"Compare the user's issue:\n{summary}\n\n"
+        f"Case:\nTitle: {case_title}\nSnippet: {snippet}\n\n"
+        "Respond strictly in JSON as:\n"
+        "{ \"score\": <0-100>, \"reason\": \"one-sentence reason\" }"
+    )
+    try:
+        response = scorer_agent.send_message(prompt)
+        text = response.text.strip()
+        match = re.search(r"\{.*\}", text, re.S)
+        parsed = json.loads(match.group(0)) if match else {}
+        score = int(parsed.get("score", 50))
+        reason = parsed.get("reason", "No reason given.")
+    except Exception as e:
+        score, reason = 50, f"[Error grading case: {e}]"
+    return {"score": min(max(score, 0), 100), "reason": reason}
+
+# =====================================================
+# COURTLISTENER SEARCH
+# =====================================================
 def query_courtlistener(query: str):
     base = "https://www.courtlistener.com/api/rest/v4/search/"
     headers = {}
     if COURTLISTENER_TOKEN:
         headers["Authorization"] = f"Token {COURTLISTENER_TOKEN}"
-
-    params = {"q": query}
-    resp = requests.get(base, params=params, headers=headers, timeout=20)
+    resp = requests.get(base, params={"q": query}, headers=headers, timeout=20)
     resp.raise_for_status()
     data = resp.json()
 
@@ -77,21 +121,25 @@ def query_courtlistener(query: str):
         if pdf_link.startswith("/"):
             pdf_link = "https://www.courtlistener.com" + pdf_link
         snippet = item.get("snippet") or item.get("summary") or ""
-        court = item.get("court") or {}
         decision_date = item.get("decision_date") or ""
         results.append({
             "title": title,
             "citation": citation,
             "pdf_link": pdf_link,
             "snippet": snippet,
-            "court": court,
             "decision_date": decision_date,
         })
     return results[:10]
 
-# ------------------------------
-# Routes
-# ------------------------------
+# =====================================================
+# HELPERS
+# =====================================================
+def allowed_file(filename: str) -> bool:
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# =====================================================
+# ROUTES
+# =====================================================
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -100,81 +148,105 @@ def index():
 def upload():
     if 'pdf' not in request.files:
         return redirect(url_for('index'))
-    file = request.files['pdf']
-    if file.filename == '':
+    f = request.files['pdf']
+    if f.filename == '':
         return redirect(url_for('index'))
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        return jsonify({'filename': filename, 'text': f"[Mock text extracted from {filename}]"})
+    if f and allowed_file(f.filename):
+        name = secure_filename(f.filename)
+        path = os.path.join(app.config['UPLOAD_FOLDER'], name)
+        f.save(path)
+        return jsonify({'filename': name, 'text': f"[Extracted text from {name}]"})
     return redirect(url_for('index'))
 
-# ------------------------------
-# Chat Route (Clarifying Flow)
-# ------------------------------
+# =====================================================
+# MAIN CHAT ENDPOINT
+# =====================================================
 @app.route('/chat', methods=['POST'])
 def chat():
     payload = request.json or {}
-    user_input = payload.get("message", "").strip()
+    message = payload.get("message", "").strip()
     clarified = payload.get("clarified", False)
     clarification_answers = payload.get("clarification_answers", None)
     clarify_attempts = int(payload.get("clarify_attempts", 0) or 0)
+    adding_info = payload.get("adding_info", False)
 
-    # Step 1: Ask clarifying questions (up to 2 rounds)
+    context_id = get_context_id()
+    context = user_contexts.setdefault(context_id, {"description": "", "clarify_attempts": 0})
+
+    # -------------------------------------------------
+    # Add extra info if refining
+    # -------------------------------------------------
+    if adding_info and message:
+        context["description"] += " " + message
+
+    # -------------------------------------------------
+    # Step 1: Ask clarifying questions
+    # -------------------------------------------------
     if not clarified and not clarification_answers and clarify_attempts < 2:
-        prompt = (
-            f"You are a legal assistant. Given the user's input: \"{user_input}\", "
-            f"ask up to 3 brief clarifying questions (about jurisdiction, main issue, and key facts). "
-            f"Return each question on a new line."
-        )
-        response = call_genai(prompt)
-        questions = [q.strip() for q in response.splitlines() if q.strip()]
+        questions = ask_clarifying_questions(message)
+        context["clarify_attempts"] = clarify_attempts + 1
+        context["description"] += " " + message
         return jsonify({
             "status": "clarifying",
             "questions": questions,
-            "clarify_attempts": clarify_attempts + 1
+            "clarify_attempts": context["clarify_attempts"],
+            "context_id": context_id
         })
 
-    # Step 2: Combine user input + answers
-    parts = [user_input]
+    # -------------------------------------------------
+    # Step 2: Merge all text
+    # -------------------------------------------------
+    combined_text = (context["description"] + " " + message).strip()
     if clarification_answers:
         if isinstance(clarification_answers, list):
-            parts.extend(clarification_answers)
+            combined_text += " " + " ".join(clarification_answers)
         else:
-            parts.append(str(clarification_answers))
-    query_text = " ".join(parts).strip()
+            combined_text += " " + str(clarification_answers)
 
-    # Step 3: Summarize full case description into a search query
-    summary_prompt = (
-        f"Summarize the following case outline into a concise, factual search description:\n\n{query_text}"
-    )
-    summarized_info = call_genai(summary_prompt)
-    search_query = generate_query(summarized_info)
+    context["description"] = combined_text
 
-    # Step 4: Query CourtListener
+    # -------------------------------------------------
+    # Step 3: Summarize & query
+    # -------------------------------------------------
+    summary = summarize_case(combined_text)
+    search_query = generate_query(summary)
+
+    # -------------------------------------------------
+    # Step 4: Fetch from CourtListener
+    # -------------------------------------------------
     try:
         cases = query_courtlistener(search_query)
     except Exception as e:
-        return jsonify({"status": "error", "message": f"Search failed: {e}"}), 500
+        return jsonify({"status": "error", "message": f"CourtListener error: {e}"}), 500
 
-    # Step 5: Generate rationales
+    # -------------------------------------------------
+    # Step 5: Grade each case
+    # -------------------------------------------------
     results = []
     for c in cases:
-        rationale_prompt = (
-            f"Explain in 1–2 sentences why the case '{c['title']}' "
-            f"might be relevant to the user's issue: {summarized_info}"
-        )
-        rationale = call_genai(rationale_prompt)
-        c["relevance"] = rationale
-        results.append(c)
+        grading = grade_case(summary, c['title'], c['snippet'])
+        results.append({
+            **c,
+            "relevance_score": grading["score"],
+            "relevance_reason": grading["reason"]
+        })
 
+    # Sort by descending relevance
+    results.sort(key=lambda x: x["relevance_score"], reverse=True)
+
+    # -------------------------------------------------
+    # Step 6: Return results
+    # -------------------------------------------------
     return jsonify({
         "status": "results",
+        "context_id": context_id,
         "query": search_query,
         "cases": results
     })
 
+# =====================================================
+# RUN
+# =====================================================
 if __name__ == '__main__':
-    print("Starting Lawyer Assistant App...")
+    print("🚀 Lawyer Assistant (Multi-Agent) is running...")
     app.run(host='0.0.0.0', port=5000, debug=True)
