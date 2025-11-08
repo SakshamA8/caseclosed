@@ -14,6 +14,12 @@ venv/
 .venv
 *.log
 
+# Google Cloud credentials
+key.json
+*.json
+!package.json
+!package-lock.json
+
 # IDEs / editors
 .vscode/
 .idea/
