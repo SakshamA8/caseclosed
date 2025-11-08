@@ -42,35 +42,36 @@ def upload():
         # Here you can parse PDF and extract text using PyMuPDF/pdfminer
         extracted_text = "Mock extracted text from PDF"
         return jsonify({'filename': filename, 'text': extracted_text})
-    return redirect(url_for('index'))
+    return jsonify({'filename': filename, 'text': extracted_text})
+
 
 # Chat endpoint for clarifying questions and case retrieval
 @app.route('/chat', methods=['POST'])
 def chat():
-    user_input = request.json.get('message')
-# ""
-#     # Stage 1: Clarifying questions (mock)
-#     clarifying_questions = [
-#         "What jurisdiction is your case in?",
-#         "Briefly describe the legal issue.",
-#         "Are there any relevant facts you want to highlight?"
-#     ]
+    # user_input = request.json.get('message')
 
-#     # Stage 2: Once clarified, retrieve cases (mock)
-#     retrieved_cases = [
-#         {
-#             'title': 'Mock Case 1',
-#             'citation': '123 U.S. 456',
-#             'pdf_link': '#',
-#             'relevance': 'This case shares the same legal principle regarding contract interpretation.'
-#         },
-#         {
-#             'title': 'Mock Case 2',
-#             'citation': '789 F.2d 101',
-#             'pdf_link': '#',
-#             'relevance': 'Factual similarity regarding employment law.'
-#         }
-#     ]""
+    # Stage 1: Clarifying questions (mock)
+    clarifying_questions = [
+        "What jurisdiction is your case in?",
+        "Briefly describe the legal issue.",
+        "Are there any relevant facts you want to highlight?"
+    ]
+
+    # Stage 2: Once clarified, retrieve cases (mock)
+    retrieved_cases = [
+        {
+            'title': 'Mock Case 1',
+            'citation': '123 U.S. 456',
+            'pdf_link': '#',
+            'relevance': 'This case shares the same legal principle regarding contract interpretation.'
+        },
+        {
+            'title': 'Mock Case 2',
+            'citation': '789 F.2d 101',
+            'pdf_link': '#',
+            'relevance': 'Factual similarity regarding employment law.'
+        }
+    ]
     
     # Generate clarifying questions or rationale
     response = openai.ChatCompletion.create(
