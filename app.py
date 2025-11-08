@@ -25,23 +25,27 @@ def allowed_file(filename: str) -> bool:
 # ------------------------------
 # Vertex AI / Gemini setup
 # ------------------------------
+# ------------------------------
+# Vertex AI / Gemini setup
+# ------------------------------
 from google import genai
-from google.genai.types import HttpOptions
 
 client = genai.Client(
     vertexai=True,
     project=PROJECT_ID,
     location=GOOGLE_CLOUD_LOCATION,
-    http_options=HttpOptions(api_version="v1")
 )
-chat_session = client.start_chat()
 
-def call_genai(prompt: str, max_output_tokens: int = 256) -> str:
+# Create a persistent chat session (stateful memory)
+chat_session = client.chats.create(model="gemini-2.5-flash", history=[])
+
+def call_genai(prompt: str) -> str:
+    """
+    Uses a persistent Gemini chat session to maintain context between turns.
+    """
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt,
-        )
+        # Send the prompt directly — no generation_config keyword needed
+        response = chat_session.send_message(prompt)
         return response.text
     except Exception as e:
         return f"[Gemini API error: {e}]"
