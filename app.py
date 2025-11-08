@@ -34,6 +34,7 @@ client = genai.Client(
     location=GOOGLE_CLOUD_LOCATION,
     http_options=HttpOptions(api_version="v1")
 )
+chat_session = client.start_chat()
 
 def call_genai(prompt: str, max_output_tokens: int = 256) -> str:
     try:
