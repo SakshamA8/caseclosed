@@ -83,7 +83,7 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 
 2. **Required Files**
    - `.env` file with your environment variables (PROJECT_ID, GOOGLE_CLOUD_LOCATION, COURTLISTENER_TOKEN, etc.)
-   - `key.json` - Google Cloud service account credentials file in the project root directory
+   - `key.json` - [Google Cloud service](https://docs.cloud.google.com/iam/docs/keys-create-delete) account credentials file in the project root directory
 
 ### Running on Mac/Linux
 
