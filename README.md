@@ -70,7 +70,7 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 
 ## Demo
 
-[![Watch our skit and demo here!](https://img.youtube.com/vi/-iNLur6breI/maxresdefault.jpg)](https://youtu.be/-iNLur6breI)
+[![Watch the video](https://img.youtube.com/vi/-iNLur6breI/maxresdefault.jpg)](https://youtu.be/-iNLur6breI)
 
 
 ## Setup and Running
