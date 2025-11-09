@@ -4,10 +4,10 @@ As part of the AI Hackathon, we built **Case Closed** — an AI-powered preceden
 
 Contributors:
 
-- Sai Yadavalli — Agent Development
-- Sedat Unal — Full-stack and Flexible developer
-- Jason Pereira — Backend and UI/UX design
-- Saksham Anand — Gemini + CourtListener API integration
+- Sai Yadavalli — AI Engineer
+- Sedat Unal — Full-stack Developer
+- Jason Pereira — Frontend Developer & UI/UX Designer
+- Saksham Anand — Backend Developer
 
 ---
 
