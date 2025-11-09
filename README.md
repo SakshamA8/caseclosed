@@ -82,8 +82,8 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
    - Ensure Docker is running before proceeding
 
 2. **Required Files**
-   - `.env` file with your environment variables (PROJECT_ID, GOOGLE_CLOUD_LOCATION, COURTLISTENER_TOKEN, etc.)
-   - `key.json` - [Google Cloud service](https://docs.cloud.google.com/iam/docs/keys-create-delete) account credentials file in the project root directory
+   - `.env` file with your environment variables (PROJECT_ID, GOOGLE_CLOUD_LOCATION, COURTLISTENER_TOKEN, GOOGLE_APPLICATION_CREDENTIALS=/key.json)
+   - `key.json` - [Google Cloud service](https://docs.cloud.google.com/iam/docs/keys-create-delete) account credentials file in the project root directory. Paste your key in the file once you acquire it. 
 
 ### Running on Mac/Linux
 
