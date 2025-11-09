@@ -102,12 +102,13 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 
 ### Running on Windows
 
-1. **Build the Docker image:**
+1. **Clone This Repository**
+2. **Build the Docker image:**
    ```powershell
    docker build --no-cache -t caseclosed .
    ```
 
-2. **Run the container (PowerShell):**
+3. **Run the container (PowerShell):**
    ```powershell
    docker run -p 5000:5000 `
      --env-file .env `
@@ -121,7 +122,7 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
    docker run -p 5000:5000 --env-file .env -v "%cd%/key.json:/app/key.json" -e GOOGLE_APPLICATION_CREDENTIALS=/app/key.json caseclosed
    ```
 
-3. **Access the application:**
+4. **Access the application:**
    - Open your browser and navigate to: `http://localhost:5000`
 
 ### Stopping the Container
