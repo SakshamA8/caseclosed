@@ -69,7 +69,7 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 ---
 
 ## Demo
-
+Click the video below to view our skit and demo!
 [![Watch the video](https://img.youtube.com/vi/-iNLur6breI/hqdefault.jpg)](https://youtu.be/-iNLur6breI)
 
 ## Setup and Running
