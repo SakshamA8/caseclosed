@@ -72,3 +72,62 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 
 [![Watch our skit and demo here!](https://img.youtube.com/vi/-iNLur6breI/maxresdefault.jpg)](https://youtu.be/-iNLur6breI)
 
+
+## Setup and Running
+
+### Prerequisites
+
+1. **Install Docker Desktop**
+   - Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+   - Ensure Docker is running before proceeding
+
+2. **Required Files**
+   - `.env` file with your environment variables (PROJECT_ID, GOOGLE_CLOUD_LOCATION, COURTLISTENER_TOKEN, etc.)
+   - `key.json` - Google Cloud service account credentials file in the project root directory
+
+### Running on Mac/Linux
+
+1. **Build the Docker image:**
+   ```bash
+   docker build --no-cache -t caseclosed .
+   ```
+
+2. **Run the container:**
+   ```bash
+   docker run -p 5000:5000 --env-file .env -v "$(pwd)/key.json:/app/key.json" -e GOOGLE_APPLICATION_CREDENTIALS=/app/key.json caseclosed
+   ```
+
+3. **Access the application:**
+   - Open your browser and navigate to: `http://localhost:5000`
+
+### Running on Windows
+
+1. **Build the Docker image:**
+   ```powershell
+   docker build --no-cache -t caseclosed .
+   ```
+
+2. **Run the container (PowerShell):**
+   ```powershell
+   docker run -p 5000:5000 `
+     --env-file .env `
+     -v "${PWD}/key.json:/app/key.json" `
+     -e GOOGLE_APPLICATION_CREDENTIALS=/app/key.json `
+     caseclosed
+   ```
+
+   **Or using Command Prompt:**
+   ```cmd
+   docker run -p 5000:5000 --env-file .env -v "%cd%/key.json:/app/key.json" -e GOOGLE_APPLICATION_CREDENTIALS=/app/key.json caseclosed
+   ```
+
+3. **Access the application:**
+   - Open your browser and navigate to: `http://localhost:5000`
+
+### Stopping the Container
+
+Press `Ctrl+C` in the terminal where the container is running, or:
+
+```bash
+docker ps  # Find the container ID
+docker stop <container-id>
