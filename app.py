@@ -54,7 +54,8 @@ user_contexts = {}  # {session_id: {
 #     "jurisdictions": list,
 #     "parties": list,
 #     "legal_issues": list,
-#     "causes_of_action": list
+#     "causes_of_action": list,
+#     "penal_codes": list
 #   },
 #   "summary": str,
 #   "search_query": str,
@@ -69,26 +70,41 @@ def get_context_id():
 # =====================================================
 # AGENT FUNCTIONS
 # =====================================================
-def ask_clarifying_questions(user_input: str, existing_analysis: dict = None) -> list:
-    context = ""
+def ask_clarifying_questions(user_input: str, existing_analysis: dict = None, description: str = "") -> list:
+    """
+    Generate up to 3 clarifying legal questions relevant to building a case argument.
+    Avoid repeating questions about information already in `existing_analysis` or `description`.
+    """
+    context_text = ""
+
     if existing_analysis:
-        context = f"Already known: {json.dumps(existing_analysis, indent=2)}\n\n"
-    
+        context_text += "KNOWN INFORMATION:\n"
+        for key, val in existing_analysis.items():
+            if val:
+                context_text += f"- {key}: {json.dumps(val, indent=2)}\n"
+    if description:
+        context_text += f"\nFULL CASE DESCRIPTION (so far):\n{description}\n"
+
     prompt = (
-        f"You are a legal paralegal assistant conducting fact-finding. "
-        f"Given this input: '{user_input}'\n\n{context}"
-        "Ask up to 3 specific, fact-finding legal questions such as: "
-        "'What damages were suffered?', 'Was a contract signed?', 'What is the jurisdiction?', "
-        "'Who are the parties involved?', 'What is the timeline of events?', "
-        "'Are there any witnesses?', 'What evidence exists?'. "
-        "Focus on gathering concrete facts needed for legal analysis. "
-        "Return each question on a new line."
+        f"You are a professional legal paralegal assisting a lawyer in building a legal argument.\n"
+        f"Given the user's most recent message:\n'{user_input}'\n\n"
+        f"And the known case context below:\n{context_text}\n"
+        "Ask up to 3 clarifying questions **only** about information that is missing and critical for legal analysis — "
+        "such as damages, contract terms, jurisdiction, causes of action, or key facts.\n"
+        "Do NOT ask about information already in the context.\n"
+        "If you already have sufficient facts, respond exactly with 'NO QUESTIONS NEEDED'."
     )
+
     try:
         response = clarifier_agent.send_message(prompt)
-        return [q.strip() for q in response.text.splitlines() if q.strip()]
+        lines = [q.strip() for q in response.text.splitlines() if q.strip()]
+        if any("NO QUESTIONS NEEDED" in q.upper() for q in lines):
+            return []
+        return lines[:3]
     except Exception as e:
         return [f"[Error asking clarifications: {e}]"]
+
+
 
 def extract_answers_from_message(user_message: str, questions: list) -> dict:
     """Extract answers to questions from user's message."""
@@ -118,25 +134,50 @@ def extract_answers_from_message(user_message: str, questions: list) -> dict:
         pass
     return {"answers": {}, "has_sufficient_info": False}
 
+def filter_redundant_questions(questions, analysis):
+    """
+    Remove clarifying questions that are already covered by the analysis context.
+    """
+    if not analysis:
+        return questions
+
+    answered_keys = {k for k, v in analysis.items() if v}
+    filtered = []
+    for q in questions:
+        lower_q = q.lower()
+        if any(keyword in lower_q for keyword in answered_keys):
+            continue
+        filtered.append(q)
+    return filtered
+
 def check_if_more_info_needed(user_message: str, existing_context: str, analysis: dict = None) -> tuple:
-    """Check if more information is needed and return questions if needed."""
-    combined = (existing_context + " " + user_message).strip()
-    context_str = ""
+    """
+    Check if more information is needed and return up to 3 questions.
+    Includes full description and structured analysis to avoid repeat questions.
+    """
+    context_text = ""
     if analysis:
-        context_str = f"Current analysis: {json.dumps(analysis, indent=2)}\n\n"
-    
+        context_text += "CURRENT STRUCTURED ANALYSIS:\n"
+        for key, val in analysis.items():
+            if val:
+                context_text += f"- {key}: {json.dumps(val, indent=2)}\n"
+
+    combined = (existing_context + " " + user_message).strip()
+
     prompt = (
-        f"You are a legal paralegal assistant. Review this case information:\n\n"
-        f"{context_str}Case description: {combined}\n\n"
-        "Determine if you have sufficient information to conduct a legal analysis and case law search. "
-        "You need: facts, jurisdiction, parties, legal issues, and causes of action. "
+        f"You are a legal paralegal assistant reviewing a client's case.\n"
+        f"Below is the full information currently known:\n{context_text}\n\n"
+        f"Case description:\n{combined}\n\n"
+        "Determine if critical legal information is missing for analysis "
+        "(facts, jurisdiction, parties, legal issues, causes of action).\n"
         "Respond strictly in JSON format:\n"
         "{\n"
         '  "needs_more_info": true/false,\n'
-        '  "questions": ["question 1", "question 2", ...] or [] if no questions needed\n'
+        '  "questions": ["question 1", "question 2", ...]\n'
         "}\n"
-        "Only ask questions if critical information is missing. Maximum 3 questions."
+        "Only ask questions if *essential* facts are missing, and avoid duplicates of already known information."
     )
+
     try:
         response = clarifier_agent.send_message(prompt)
         text = response.text.strip()
@@ -145,10 +186,15 @@ def check_if_more_info_needed(user_message: str, existing_context: str, analysis
             parsed = json.loads(match.group(0))
             needs_more = parsed.get("needs_more_info", False)
             questions = parsed.get("questions", [])
-            return needs_more, questions if isinstance(questions, list) else []
+            if not isinstance(questions, list):
+                questions = []
+            # Filter redundant ones before returning
+            questions = filter_redundant_questions(questions, analysis)
+            return needs_more, questions
     except Exception as e:
         pass
     return False, []
+
 
 def summarize_case(text: str) -> str:
     prompt = f"Summarize this legal situation clearly and factually for use in a case law search:\n\n{text}"
@@ -159,18 +205,21 @@ def summarize_case(text: str) -> str:
         return f"[Error summarizing: {e}]"
 
 def extract_structured_analysis(text: str) -> dict:
-    """Extract structured facts, jurisdictions, parties, issues, and causes of action."""
+    """Extract structured facts, jurisdictions, parties, issues, causes of action, and penal codes."""
     prompt = (
-        f"Analyze this legal text and extract structured information:\n\n{text}\n\n"
+        f"Analyze this legal text and extract comprehensive structured information:\n\n{text}\n\n"
         "Respond strictly in JSON format with the following structure:\n"
         "{\n"
-        '  "facts": ["fact1", "fact2", ...],\n'
+        '  "facts": ["detailed fact1", "detailed fact2", ...],\n'
         '  "jurisdictions": ["jurisdiction1", ...],\n'
-        '  "parties": [{"name": "party1", "role": "plaintiff/defendant/other"}, ...],\n'
-        '  "legal_issues": ["issue1", "issue2", ...],\n'
-        '  "causes_of_action": ["cause1", "cause2", ...]\n'
+        '  "parties": [{"name": "party1", "role": "plaintiff/defendant/other", "details": "additional info"}, ...],\n'
+        '  "legal_issues": ["detailed issue1 with context", "detailed issue2", ...],\n'
+        '  "causes_of_action": ["detailed cause1", "detailed cause2", ...],\n'
+        '  "penal_codes": [{"code": "PC 123", "description": "description of the code", "relevance": "why it applies"}, ...]\n'
         "}\n"
-        "Be thorough and extract all relevant information. If information is not available, use empty arrays."
+        "Be thorough and extract all relevant information. For penal codes, include any relevant state or federal codes "
+        "(e.g., 'PC 187' for California Penal Code, '18 U.S.C. § 1001' for federal). Include descriptions and why each code is relevant. "
+        "If information is not available, use empty arrays."
     )
     try:
         response = analyzer_agent.send_message(prompt)
@@ -184,7 +233,8 @@ def extract_structured_analysis(text: str) -> dict:
                 "jurisdictions": parsed.get("jurisdictions", []),
                 "parties": parsed.get("parties", []),
                 "legal_issues": parsed.get("legal_issues", []),
-                "causes_of_action": parsed.get("causes_of_action", [])
+                "causes_of_action": parsed.get("causes_of_action", []),
+                "penal_codes": parsed.get("penal_codes", [])
             }
     except Exception as e:
         pass
@@ -193,7 +243,8 @@ def extract_structured_analysis(text: str) -> dict:
         "jurisdictions": [],
         "parties": [],
         "legal_issues": [],
-        "causes_of_action": []
+        "causes_of_action": [],
+        "penal_codes": []
     }
 
 def generate_query(summary: str, analysis: dict = None) -> str:
@@ -218,18 +269,38 @@ def generate_query(summary: str, analysis: dict = None) -> str:
         return summary
 
 def grade_case(summary: str, case_title: str, snippet: str, analysis: dict = None) -> dict:
+    # Build context from structured analysis if available
     context = ""
     if analysis:
-        issues = ", ".join(analysis.get("legal_issues", []))
-        context = f"\n\nUser's Legal Issues: {issues}"
-    
-    prompt = (
-        "You are a legal relevance evaluator.\n"
-        f"Compare the user's issue:\n{summary}{context}\n\n"
-        f"Case:\nTitle: {case_title}\nSnippet: {snippet}\n\n"
-        "Respond strictly in JSON as:\n"
-        "{ \"score\": <0-100>, \"reason\": \"one-sentence reason\" }"
-    )
+        issues = ", ".join(analysis.get("legal_issues", [])) or ", ".join(analysis.get("issues", []))
+        causes = ", ".join(analysis.get("causes_of_action", []))
+        if issues or causes:
+            context = "\n\nUser's Legal Context:\n"
+            if issues:
+                context += f"- Legal Issues: {issues}\n"
+            if causes:
+                context += f"- Causes of Action: {causes}\n"
+
+    # Stronger, more structured grading prompt
+    prompt = f"""
+        You are an experienced legal research assistant. 
+        Your task is to evaluate how relevant the following case is to the user's described legal issue.
+
+        User's Description:
+        {summary}{context}
+
+        Case to Evaluate:
+        Title: {case_title}
+        Excerpt: {snippet}
+
+        Instructions:
+        - Score relevance from 0 to 100.
+        - Base your score on factual similarity, legal issues, causes of action, and jurisdictional context.
+        - Be objective and concise.
+        - Output ONLY valid JSON in this exact format:
+        {{"score": <integer>, "reason": "<one-sentence reason>"}}
+    """
+
     try:
         response = scorer_agent.send_message(prompt)
         text = response.text.strip()
@@ -239,7 +310,13 @@ def grade_case(summary: str, case_title: str, snippet: str, analysis: dict = Non
         reason = parsed.get("reason", "No reason given.")
     except Exception as e:
         score, reason = 50, f"[Error grading case: {e}]"
-    return {"score": min(max(score, 0), 100), "reason": reason}
+
+    # Normalize and return safe output
+    return {
+        "score": max(0, min(100, score)),
+        "reason": reason.strip()
+    }
+
 
 def draft_legal_document(context: dict, doc_type: str = "memo") -> str:
     """Generate professional legal memo or brief."""
@@ -413,14 +490,14 @@ def chat():
         combined_text = context["description"].strip()
         
         # Check if we still need more info
-        needs_more, new_questions = check_if_more_info_needed(message, context["description"], context.get("analysis"))
+        needs_more, questions = check_if_more_info_needed(message, combined_text, context.get("analysis"))
         
-        if needs_more and new_questions and clarify_attempts < 2:
-            context["pending_questions"] = new_questions
+        if needs_more and questions and clarify_attempts < 2:
+            context["pending_questions"] = questions
             context["clarify_attempts"] = clarify_attempts + 1
             return jsonify({
                 "status": "clarifying",
-                "questions": new_questions,
+                "questions": questions,
                 "clarify_attempts": context["clarify_attempts"],
                 "context_id": context_id,
                 "analysis": context.get("analysis", {})
