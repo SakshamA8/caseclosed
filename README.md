@@ -35,11 +35,10 @@ This approach accelerates legal workflows by combining: multi-agent reasoning (f
 
 The repository contains the full-stack app, agent pipeline, and demo frontend.
 
-- `backend/` — Flask server and agent orchestrator
-- `frontend/` — vanilla JavaScript chat-style UI and upload interface
-- `agents/` — modular agent definitions (extractor, retriever, evaluator, drafter)
-- `notebooks/` — small experiments for embeddings / similarity tuning
-- `assets/` — diagrams, logo, and demo screenshots
+- `app.py` — Flask server and agent orchestrator
+- `app.py/` — modular agent definitions (extractor, retriever, evaluator, drafter)
+- `static/` — vanilla JavaScript/CSS chat-style UI and upload interface
+- `templates/` — main HTML files
 
 ### Features
 
@@ -71,4 +70,5 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 
 ## Demo
 
-<iframe width="560" height="315" src="https://www.youtube.com/watch?v=-iNLur6breI" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![Watch our skit and demo here!](https://img.youtube.com/vi/-iNLur6breI/maxresdefault.jpg)](https://youtu.be/-iNLur6breI)
+
