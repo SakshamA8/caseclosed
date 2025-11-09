@@ -5,3 +5,4 @@ requests==2.31.0
 pdfminer.six==20251107
 # openai==1.29.0
 google-genai==1.49.0
+reportlab==4.0.4

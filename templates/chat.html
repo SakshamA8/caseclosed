@@ -7,24 +7,27 @@
         <div class="chat-pane">
             <div class="chat-header">
                 <div class="chat-header-content">
-                    <h2 class="chat-title">⚖️ Legal Assistant</h2>
-                    <div class="session-indicator" id="session-indicator">
-                        <span class="session-label">Session:</span>
-                        <span class="session-id" id="session-id">-</span>
+                    <h2 class="chat-title">Legal Assistant</h2>
+                    <div class="role-selector" id="role-selector">
+                        <label for="role-select" class="role-label">Role:</label>
+                        <select id="role-select" class="role-select" name="role">
+                            <option value="defendant">Defendant</option>
+                            <option value="prosecutor">Prosecutor</option>
+                        </select>
                     </div>
                 </div>
                 <!-- Toolbar -->
                 <div class="toolbar">
                     <button type="button" class="toolbar-btn" id="upload-btn" title="Upload PDF">
-                        <span class="icon">📄</span>
+                        <span class="icon"><i class="fas fa-file-pdf"></i></span>
                         <span class="btn-text">Upload PDF</span>
                     </button>
                     <button type="button" class="toolbar-btn" id="analyze-btn" title="Analyze Case">
-                        <span class="icon">⚖️</span>
+                        <span class="icon"><i class="fas fa-brain"></i></span>
                         <span class="btn-text">Analyze</span>
                     </button>
                     <button type="button" class="toolbar-btn" id="draft-btn" title="Draft Document">
-                        <span class="icon">🧾</span>
+                        <span class="icon"><i class="fas fa-file-alt"></i></span>
                         <span class="btn-text">Draft</span>
                     </button>
                     <input type="file" name="pdf" accept="application/pdf" id="pdf-input" style="display: none;" aria-hidden="true">
@@ -40,16 +43,16 @@
             
             <!-- Chat input form -->
             <form id="chat-form" class="chat-form" autocomplete="off">
-                <input
-                    type="text"
+                <textarea
                     id="chat-input"
                     name="message"
-                    placeholder="Type your message or legal question..."
+                    placeholder="Type your message or legal question... (Shift+Enter for new line)"
                     aria-label="Message"
                     autocomplete="off"
-                >
+                    rows="1"
+                ></textarea>
                 <button type="submit" aria-label="Send message" class="send-btn">
-                    <span class="send-icon">➤</span>
+                    <span class="send-icon"><i class="fas fa-paper-plane"></i></span>
                 </button>
             </form>
         </div>
@@ -59,15 +62,15 @@
             <div class="panel-header">
                 <div class="panel-tabs">
                     <button class="panel-tab active" data-tab="analysis">
-                        <span class="tab-icon">⚖️</span>
+                        <span class="tab-icon"><i class="fas fa-chart-bar"></i></span>
                         <span class="tab-label">Analysis</span>
                     </button>
                     <button class="panel-tab" data-tab="cases">
-                        <span class="tab-icon">📚</span>
+                        <span class="tab-icon"><i class="fas fa-book"></i></span>
                         <span class="tab-label">Cases</span>
                     </button>
                     <button class="panel-tab" data-tab="draft">
-                        <span class="tab-icon">🧾</span>
+                        <span class="tab-icon"><i class="fas fa-file-alt"></i></span>
                         <span class="tab-label">Draft</span>
                     </button>
                 </div>
@@ -104,6 +107,7 @@
                                 <option value="brief">Brief</option>
                             </select>
                             <button type="button" class="draft-generate-btn" id="draft-generate-btn">Generate Document</button>
+                            <button type="button" class="draft-download-btn" id="draft-download-btn" style="display: none;">Download PDF</button>
                         </div>
                         <div id="draft-content" class="draft-content">
                             <p class="empty-state">Click "Generate Document" to create a legal memo or brief based on your case analysis.</p>
