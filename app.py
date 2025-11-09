@@ -281,7 +281,7 @@ def grade_case(summary: str, case_title: str, snippet: str, analysis: dict = Non
     # Stronger, more structured grading prompt
     prompt = f"""
         You are an experienced legal research assistant. 
-        Your task is to evaluate how relevant the following case is to the user's described legal issue.
+        Your task is to assess how relevant the following case is to the user's described legal issue.
 
         User's Description:
         {summary}{context}
@@ -291,9 +291,12 @@ def grade_case(summary: str, case_title: str, snippet: str, analysis: dict = Non
         Excerpt: {snippet}
 
         Instructions:
-        - Score relevance from 0 to 100.
-        - Base your score on factual similarity, legal issues, causes of action, and jurisdictional context.
-        - Be objective and concise.
+        - Provide a relevance score from 0 to 100.
+        - Consider overlap in facts, legal issues, causes of action, and jurisdictional or procedural context.
+        - Be moderately lenient: if there is any meaningful thematic or factual connection, assign at least a partial score (e.g., 30–60 range).
+        - Reserve very low scores (0–20) only for completely unrelated or irrelevant cases.
+        - Higher scores (70–100) indicate strong legal and factual alignment.
+        - Be fair, consistent, and nuanced — reward partial matches.
         - Output ONLY valid JSON in this exact format:
         {{"score": <integer>, "reason": "<one-sentence reason>"}}
     """

@@ -1,4 +1,4 @@
-# Contributing: Case Closed
+# Case Closed
 
 As part of the AI Hackathon, we built **Case Closed** — an AI-powered precedent recommendation engine that blends multi-agent reasoning, modern LLMs, and the CourtListener API to make legal research faster and more contextual. The project aims to move beyond keyword search and toward legal-similarity-driven retrieval, automated memo/brief drafting, and an iterative, chat-style research workflow.
 

@@ -214,7 +214,7 @@ async function handleChatSubmit(e) {
     chatInput.value = '';
     autoResizeTextarea();
     
-    const thinking = appendMessage('bot', 'Thinking...');
+    const thinking = appendMessage('bot', getThinkingText());
     
     try {
         // Always send the message - backend will extract answers if in clarification mode
@@ -581,4 +581,20 @@ function autoResizeTextarea() {
         chatInput.style.height = 'auto';
         chatInput.style.height = Math.min(chatInput.scrollHeight, 200) + 'px';
     }
+}
+
+// Utility: pick a thinking/placeholder message at random (uniform probability)
+function getThinkingText() {
+    const options = [
+        'Thinking...',
+        'Processing...',
+        'Generating response...',
+        'Composing reply...',
+        'Working on it...',
+        'Hold on...',
+        'Formulating answer...',
+        'One moment...'
+    ];
+    const idx = Math.floor(Math.random() * options.length);
+    return options[idx];
 }
