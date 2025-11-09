@@ -4,8 +4,8 @@ As part of the AI Hackathon, we built **Case Closed** — an AI-powered preceden
 
 Contributors:
 
-- Sai Yadavalli — agent development
-- Sedat Unal — full-stack, flexible developer
+- Sai Yadavalli — Agent Development
+- Sedat Unal — Full-stack and Flexible developer
 - Jason Pereira — Backend and UI/UX design
 - Saksham Anand — Gemini + CourtListener API integration
 
@@ -66,3 +66,9 @@ The repository contains the full-stack app, agent pipeline, and demo frontend.
 ## Stack Overview
 
 ![Case Closed High Level Architecture](assets/case_closed_architecture.png)
+
+---
+
+## Demo
+
+<iframe width="560" height="315" src="https://www.youtube.com/watch?v=-iNLur6breI" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
