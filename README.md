@@ -6,7 +6,7 @@ Contributors:
 
 - Sai Yadavalli — agent development
 - Sedat Unal — full-stack, flexible developer
-- Jason Pereira — UI/UX and creative expert (video, slides)
+- Jason Pereira — Backend and UI/UX design
 - Saksham Anand — Gemini + CourtListener API integration
 
 ---
