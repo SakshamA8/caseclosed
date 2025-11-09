@@ -1,6 +1,6 @@
-// =====================================================
-// GLOBAL STATE
-// =====================================================
+// Global State Management
+// @dev-owner: Sarah M.
+// Keep these in sync with the backend state model
 const chatBox = document.querySelector('#chat-box');
 const chatForm = document.querySelector('#chat-form');
 const chatInput = document.querySelector('#chat-input');
@@ -18,9 +18,10 @@ let contextId = null;
 let currentAnalysis = {};
 let currentCases = [];
 
-// =====================================================
-// INITIALIZATION
-// =====================================================
+/* Init & Setup
+ * TODO: Consider moving to TypeScript for better type safety
+ * Fix: CASE-245 - Add error handling for context load failure
+ */
 document.addEventListener('DOMContentLoaded', async () => {
     // Load context on page load
     await loadContext();
