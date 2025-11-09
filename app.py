@@ -40,6 +40,7 @@ summarizer_agent = client.chats.create(model="gemini-2.5-flash")
 scorer_agent = client.chats.create(model="gemini-2.5-flash")
 analyzer_agent = client.chats.create(model="gemini-2.5-pro")
 draft_agent = client.chats.create(model="gemini-2.5-pro")
+query_agent = client.chats.create(model="gemini-2.5-pro")
 
 # -----------------------------------------------------
 # Enhanced user context with structured analysis
@@ -206,11 +207,12 @@ def generate_query(summary: str, analysis: dict = None) -> str:
     
     prompt = (
         f"Generate exactly 5 words of short keyword-style legal search terms for CourtListener "+
-        f"querying purposes based on the following summary. Output ONLY the 10 keywords with " +
-        f"no numbering or explanation: \n\n{summary}"
+        f"querying purposes based on the following summary and analysis. Output ONLY the 5 keywords with " +
+        f"no numbering or explanation: \n\nSummary:\n{summary},\n\nAnalysis{context}"
     )
     try:
-        response = summarizer_agent.send_message(prompt)
+        query_agent = client.chats.create(model="gemini-2.5-pro")
+        response = query_agent.send_message(prompt)
         return response.text.strip() or summary
     except Exception as e:
         return summary
@@ -305,7 +307,7 @@ def query_courtlistener(query: str):
             "snippet": snippet,
             "decision_date": decision_date,
         })
-    return results[:10]
+    return results[:4]
 
 # =====================================================
 # HELPERS
@@ -467,14 +469,20 @@ def chat():
     # -------------------------------------------------
     summary = summarize_case(combined_text)
     context["summary"] = summary
-    search_query = generate_query(summary, analysis)
-    context["search_query"] = search_query
 
     # -------------------------------------------------
     # Step 5: Fetch from CourtListener
     # -------------------------------------------------
+    cases = []
     try:
-        cases = query_courtlistener(search_query)
+        for i in range(3):
+            search_query = generate_query(summary, analysis)
+            context["search_query"] += f"{i}th search query: {search_query}\n\n"
+            cases_for_query = query_courtlistener(search_query)
+            for c in cases_for_query:
+                if c not in cases:
+                    cases.append(c)
+            # cases += cases_for_query
     except Exception as e:
         return jsonify({"status": "error", "message": f"CourtListener error: {e}"}), 500
 
@@ -500,7 +508,7 @@ def chat():
     return jsonify({
         "status": "results",
         "context_id": context_id,
-        "query": search_query,
+        "query": context["search_query"],
         "summary": summary,
         "analysis": analysis,
         "cases": results
