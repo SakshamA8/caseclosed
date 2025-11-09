@@ -9,10 +9,7 @@
     <!-- Top site header (ONE place for the title) -->
     <header class="site-header">
         <div class="site-header-inner">
-            <svg class="site-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
-            </svg>
+            <span class="site-icon">⚖️</span>
             <h1 class="site-title">Case Closed</h1>
         </div>
     </header>
@@ -20,7 +17,6 @@
     <div class="container">
         {% block content %}{% endblock %}
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

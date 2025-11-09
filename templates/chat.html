@@ -7,47 +7,24 @@
         <div class="chat-pane">
             <div class="chat-header">
                 <div class="chat-header-content">
-                    <h2 class="chat-title">
-                        <svg class="icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                            <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
-                        </svg>
-                        Legal Assistant
-                    </h2>
-                    <div class="side-selector">
-                        <label for="case-side" class="side-label">Side:</label>
-                        <select id="case-side" class="side-select">
-                            <option value="prosecution">Prosecution</option>
-                            <option value="defense">Defense</option>
-                        </select>
+                    <h2 class="chat-title">⚖️ Legal Assistant</h2>
+                    <div class="session-indicator" id="session-indicator">
+                        <span class="session-label">Session:</span>
+                        <span class="session-id" id="session-id">-</span>
                     </div>
                 </div>
                 <!-- Toolbar -->
                 <div class="toolbar">
                     <button type="button" class="toolbar-btn" id="upload-btn" title="Upload PDF">
-                        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
+                        <span class="icon">📄</span>
                         <span class="btn-text">Upload PDF</span>
                     </button>
                     <button type="button" class="toolbar-btn" id="analyze-btn" title="Analyze Case">
-                        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                        </svg>
+                        <span class="icon">⚖️</span>
                         <span class="btn-text">Analyze</span>
                     </button>
                     <button type="button" class="toolbar-btn" id="draft-btn" title="Draft Document">
-                        <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
+                        <span class="icon">🧾</span>
                         <span class="btn-text">Draft</span>
                     </button>
                     <input type="file" name="pdf" accept="application/pdf" id="pdf-input" style="display: none;" aria-hidden="true">
@@ -63,19 +40,16 @@
             
             <!-- Chat input form -->
             <form id="chat-form" class="chat-form" autocomplete="off">
-                <textarea
+                <input
+                    type="text"
                     id="chat-input"
                     name="message"
-                    placeholder="Type your message or legal question... (Shift+Enter for new line)"
+                    placeholder="Type your message or legal question..."
                     aria-label="Message"
                     autocomplete="off"
-                    rows="1"
-                ></textarea>
+                >
                 <button type="submit" aria-label="Send message" class="send-btn">
-                    <svg class="icon-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
+                    <span class="send-icon">➤</span>
                 </button>
             </form>
         </div>
@@ -85,27 +59,15 @@
             <div class="panel-header">
                 <div class="panel-tabs">
                     <button class="panel-tab active" data-tab="analysis">
-                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="12" y1="16" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                        </svg>
+                        <span class="tab-icon">⚖️</span>
                         <span class="tab-label">Analysis</span>
                     </button>
                     <button class="panel-tab" data-tab="cases">
-                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
+                        <span class="tab-icon">📚</span>
                         <span class="tab-label">Cases</span>
                     </button>
                     <button class="panel-tab" data-tab="draft">
-                        <svg class="tab-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
+                        <span class="tab-icon">🧾</span>
                         <span class="tab-label">Draft</span>
                     </button>
                 </div>
@@ -142,14 +104,6 @@
                                 <option value="brief">Brief</option>
                             </select>
                             <button type="button" class="draft-generate-btn" id="draft-generate-btn">Generate Document</button>
-                            <button type="button" class="draft-download-btn" id="draft-download-btn" style="display: none;">
-                                <svg class="icon-svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="7 10 12 15 17 10"></polyline>
-                                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                                </svg>
-                                Download PDF
-                            </button>
                         </div>
                         <div id="draft-content" class="draft-content">
                             <p class="empty-state">Click "Generate Document" to create a legal memo or brief based on your case analysis.</p>
